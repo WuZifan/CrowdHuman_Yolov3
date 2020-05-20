@@ -84,6 +84,7 @@ def create_modules(module_defs):
             # 输入图片大小（图片被pad到square了）
             img_size = int(hyperparams["height"])
             # Define detection layer
+            print('yolo layer anchors {},num_classes {},img_size {}'.format(anchors,num_classes,img_size))
             yolo_layer = YOLOLayer(anchors, num_classes, img_size)
             modules.add_module("yolo_{}".format(module_i), yolo_layer)
         # Register module list and number of output filters

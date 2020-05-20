@@ -1,6 +1,6 @@
 from __future__ import division
 
-from models.models import *
+from models.my_yolo import *
 from utils.logger import *
 from utils.utils import *
 from utils.datasets import *
@@ -30,6 +30,10 @@ from mylogger import MyLogger
 local_logger = MyLogger(filename='./logs/train.log',logger_name='train')
 
 warnings.filterwarnings('ignore')
+
+os.environ['CUDA_VISIBLE_DEVICES'] = '2'
+
+
 
 def img_label_map(img_list):
     root_path = str(os.getcwd())
@@ -80,12 +84,13 @@ if __name__ == "__main__":
     print(class_names)
 
     # Initiate model
-    model = Darknet(opt.model_def).to(device)
-    model.apply(weights_init_normal)
+    model = MyYolov3(num_class=2,img_size=416).to(device)
+    # 自定义的模块，初始化要模块内部做掉了
+    # model.apply(weights_init_normal)
 
     print(model.yolo_layers)
-
-    time.sleep(10000)
+    print('sceeussfuly load my model')
+    time.sleep(1000)
 
     # If specified we start from checkpoint
     if opt.pretrained_weights:
@@ -134,7 +139,7 @@ if __name__ == "__main__":
             imgs = Variable(imgs.to(device))
             targets = Variable(targets.to(device), requires_grad=False)
 
-            print(imgs.shape)
+            # print(imgs.shape)
 
             # 跑了forward方法
             loss, outputs = model(imgs, targets)
@@ -217,4 +222,4 @@ if __name__ == "__main__":
             local_logger.info("---- mAP {}".format(AP.mean()))
 
         if epoch % opt.checkpoint_interval == 0:
-            torch.save(model.state_dict(), "checkpoints/yolov3_ckpt_{}_{}_orgyolov3.pth".format(epoch,AP.mean()))
+            torch.save(model.state_dict(), "checkpoints/yolov3_ckpt_{}_{}_myyolov3.pth".format(epoch,AP.mean()))
