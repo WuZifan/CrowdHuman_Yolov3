@@ -65,7 +65,7 @@ def evaluate(model, path, iou_thres, conf_thres, nms_thres, img_size, batch_size
             # print('model outputs org',outputs.shape)
             # (x1, y1, x2, y2, object_conf, class_score, class_pred)
             outputs = non_max_suppression(outputs, conf_thres=conf_thres, nms_thres=nms_thres)
-            print('model outputs',outputs[0])
+            # print('model outputs',outputs[0])
 
         sample_metrics += get_batch_statistics(outputs, targets, iou_threshold=iou_thres)
 

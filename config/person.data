@@ -1,4 +1,4 @@
-classes= 2
+classes=2
 train=data/all_train_files.txt
 valid=data/all_val_files.txt
 names=config/person.names

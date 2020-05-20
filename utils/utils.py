@@ -19,8 +19,11 @@ def load_classes(path):
     """
     Loads class labels at 'path'
     """
-    fp = open(path, "r")
-    names = fp.read().split("\n")[:-1]
+    # fp = open(path, "r")
+    # names = fp.read().split("\n")[:-1]
+    # return names
+    with open(path,'r') as f:
+        names = [ a.strip() for a in f.readlines()]
     return names
 
 
@@ -247,11 +250,11 @@ def non_max_suppression(prediction, conf_thres=0.5, nms_thres=0.4):
         # Filter out confidence scores below threshold
         image_pred = image_pred[image_pred[:, 4] >= conf_thres]
 
-        print('res ',image_pred.shape)
+        # print('res ',image_pred.shape)
 
         # If none are remaining => process next image
         if not image_pred.size(0):
-            print('continue')
+            # print('continue')
             continue
         # Object confidence times class confidence
         score = image_pred[:, 4] * image_pred[:, 5:].max(1)[0]
@@ -262,6 +265,12 @@ def non_max_suppression(prediction, conf_thres=0.5, nms_thres=0.4):
         # Perform non-maximum suppression
         keep_boxes = []
         while detections.size(0):
+            # 处理nan and inf
+            temp = np.array(np.isnan(detections[0]), dtype=np.int8)
+            if np.sum(temp) > 0 or np.inf in detections[0]:
+                # print('there are nan or inf in detections[0],drop', detections[0])
+                detections = np.delete(detections, 0, axis=0)
+                continue
             large_overlap = bbox_iou(detections[0, :4].unsqueeze(0), detections[:, :4]) > nms_thres
             label_match = detections[0, -1] == detections[:, -1]
             # Indices of boxes with lower confidence scores, large IOUs and matching labels
@@ -347,6 +356,11 @@ def build_targets(pred_boxes, pred_cls, target, anchors, ignore_thres):
     gw, gh = gwh.t()
     # gt框位置取整，即表示这个gt框所在的cell
     gi, gj = gxy.long().t()
+
+    gi[gi < 0] = 0
+    gj[gj < 0] = 0
+    gi[gi > nG - 1] = nG - 1
+    gj[gj > nG - 1] = nG - 1
 
     # Set masks
     '''

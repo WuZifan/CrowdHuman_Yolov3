@@ -324,11 +324,11 @@ class Darknet(nn.Module):
     def __init__(self, config_path, img_size=416):
         super(Darknet, self).__init__()
 
-        if isinstance(config_path, str):
-            self.module_defs = parse_model_config(config_path)
-        elif isinstance(config_path, list):
-            self.module_defs = config_path
-        # self.module_defs = parse_model_config(config_path)
+        # if isinstance(config_path, str):
+        #     self.module_defs = parse_model_config(config_path)
+        # elif isinstance(config_path, list):
+        #     self.module_defs = config_path
+        self.module_defs = parse_model_config(config_path)
 
         self.hyperparams, self.module_list = create_modules(self.module_defs)
 
@@ -377,7 +377,6 @@ class Darknet(nn.Module):
                     这也是这里module[0]操作的意义，即将module从nn.sequential中提取出来了。
                 '''
                 x, layer_loss = module[0](x, targets, img_dim)
-                # print('model_x:',x.shape)
                 loss += layer_loss
                 yolo_outputs.append(x)
             layer_outputs.append(x)
