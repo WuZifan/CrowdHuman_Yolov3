@@ -373,6 +373,8 @@ class MyYolov3(nn.Module):
         x = self.convset3(x)
         output3 = self.header3(x)
 
+        # return output1,output2,output3
+
 
         yolo_output1, loss1 = self.yolo_layer1(output1, targets, img_dim)
         yolo_output2, loss2 = self.yolo_layer2(output2, targets, img_dim)
@@ -384,8 +386,6 @@ class MyYolov3(nn.Module):
         loss = loss1+loss2+loss3
 
         return yolo_outputs if targets is None else (loss,yolo_outputs)
-
-    # def _yolo(self,):
 
 
     def _create_upsample(self,inchannel):
@@ -424,15 +424,16 @@ class MyYolov3(nn.Module):
 
 
 if __name__ == '__main__':
-    weights_path = '../../weights/yolov3_ckpt_99_0.8027009108794954.pth'
     test_input = torch.rand([2,3,416,416])
-    model = MyYolov3(num_class=2)
+    model = MyYolov3(num_class=2).to('cpu')
 
-    print(model)
+    # print(model)
 
-    print(model(test_input).shape)
+    # print(model(test_input).shape)
 
-    # summary(model, input_size=(3, 416, 416))
+    summary(model, input_size=(3, 416, 416))
+
+    from torchvision.models import resnet18
 
 
 
