@@ -276,26 +276,26 @@ class MyYolov3(nn.Module):
     def __init__(self,num_class = 1,img_size=416):
         super(MyYolov3, self).__init__()
         self.start_model=nn.Sequential(
-            self._create_conv(inchannel=3,outchannel=32,kernel_size=3,stride=1,padding=1),
-            self._create_conv(inchannel=32,outchannel=64,kernel_size=3,stride=2,padding=1),
+            DarkConv(inchannel=3,outchannel=32,kernel_size=3,stride=1,padding=1),
+            DarkConv(inchannel=32,outchannel=64,kernel_size=3,stride=2,padding=1),
         )
 
         # DownSample
         self.block1 = self._create_model(64,1)
 
-        self.downSample1 = self._create_conv(inchannel=64,outchannel=128,kernel_size=3,stride=2,padding=1)
+        self.downSample1 = DarkConv(inchannel=64,outchannel=128,kernel_size=3,stride=2,padding=1)
 
         self.block2 = self._create_model(128,2)
 
-        self.downSample2 = self._create_conv(inchannel=128,outchannel=256,kernel_size=3,stride=2,padding=1)
+        self.downSample2 = DarkConv(inchannel=128,outchannel=256,kernel_size=3,stride=2,padding=1)
 
         self.block3 = self._create_model(256,8)
 
-        self.downSample3 = self._create_conv(inchannel=256,outchannel=512,kernel_size=3,stride=2,padding=1)
+        self.downSample3 = DarkConv(inchannel=256,outchannel=512,kernel_size=3,stride=2,padding=1)
 
         self.block4 = self._create_model(512,8)
 
-        self.downSample4 = self._create_conv(inchannel=512,outchannel=1024,kernel_size=3,stride=2,padding=1)
+        self.downSample4 = DarkConv(inchannel=512,outchannel=1024,kernel_size=3,stride=2,padding=1)
 
         self.block5 = self._create_model(1024,4)
 
@@ -390,7 +390,7 @@ class MyYolov3(nn.Module):
 
     def _create_upsample(self,inchannel):
         model = nn.Sequential(
-            self._create_conv(inchannel=inchannel,outchannel=inchannel//2,kernel_size=1,stride=1,padding=0),
+            DarkConv(inchannel=inchannel,outchannel=inchannel//2,kernel_size=1,stride=1,padding=0),
             DarkUpSample()
         )
 
@@ -400,32 +400,15 @@ class MyYolov3(nn.Module):
         layers = []
 
         for i in range(repeat):
-            # layers.append(DarkConv(inchannel=inchannel,outchannel=inchannel//2,
-            #                        kernel_size=1,stride=1,padding=0))
-            # layers.append(DarkConv(inchannel=inchannel//2,outchannel=inchannel,
-            #                        kernel_size=1,stride=1,padding=0))
             layers.append(DarkResidual(inchannel=inchannel))
 
         model = nn.Sequential(*layers)
         return model
 
-    def _create_conv(self,inchannel,outchannel,kernel_size,stride,padding):
-        model = nn.Sequential(
-            nn.Conv2d(in_channels=inchannel,
-                      out_channels=outchannel,
-                      kernel_size=kernel_size,
-                      padding=padding,
-                      stride=stride,
-                      bias=False),
-            nn.BatchNorm2d(outchannel,momentum=0.9, eps=1e-5),
-            nn.LeakyReLU(0.1)
-        )
-        return model
-
 
 if __name__ == '__main__':
     test_input = torch.rand([2,3,416,416])
-    model = MyYolov3(num_class=2).to('cpu')
+    model = MyYolov3(num_class=80).to('cpu')
 
     # print(model)
 
