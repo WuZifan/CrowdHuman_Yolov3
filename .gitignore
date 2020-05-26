@@ -12,7 +12,7 @@ data/
 output/
 logs/
 checkpoints/
-
+*.weights
 # Distribution / packaging
 .Python
 env/
