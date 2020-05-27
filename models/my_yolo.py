@@ -67,9 +67,17 @@ class DarkUpSample(nn.Module):
         super(DarkUpSample, self).__init__()
 
     def forward(self,x):
-
         return nn.functional.interpolate(x,scale_factor=2,mode='nearest')
         # return F.upsample(x,scale_factor=2,mode='nearest')
+
+class DarkUpSample2(nn.Module):
+    def __init__(self,channel):
+        super(DarkUpSample2, self).__init__()
+        self.model = nn.ConvTranspose2d(in_channels=channel,out_channels=channel,kernel_size=2,stride=2)
+
+    def forward(self,x):
+        print(x.shape)
+        return self.model(x)
 
 class YOLOLayer(nn.Module):
     """Detection layer"""
@@ -393,7 +401,7 @@ class MyYolov3(nn.Module):
     def _create_upsample(self,inchannel):
         model = nn.Sequential(
             self._create_conv(inchannel=inchannel,outchannel=inchannel//2,kernel_size=1,stride=1,padding=0),
-            DarkUpSample()
+            DarkUpSample2(inchannel//2)
         )
 
         return model

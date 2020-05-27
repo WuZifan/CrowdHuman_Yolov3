@@ -103,11 +103,16 @@ def inference(model):
 if __name__ == '__main__':
     # inference()
 
-    # model_path= './weights/yolov3-myyolov3_99_0.355_crowdhuman.pth'
-    model_path= './weights/yolov3-myyolov3_99_0.355_crowdhuman.t7'
+    model_path= './weights/yolov3-myyolov3_99_0.355_crowdhuman.pth'
+    # model_path= './weights/yolov3-myyolov3_99_0.355_crowdhuman.t7'
 
     model = get_model(model_path)
-    inference(model)
+
+    test_input = torch.randn([1,3,416,416])
+
+    torch.onnx._export(model, test_input, "./weights/yolov3-myyolov3_99_0.355_crowdhuman.onnx", export_params=True)
+
+    # inference(model)
     # print(model.state_dict())
 
     # torch.save(model.state_dict(),'weights/yolov3-myyolov3_99_0.355_crowdhuman.t7')
