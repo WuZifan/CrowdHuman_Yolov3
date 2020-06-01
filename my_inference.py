@@ -73,7 +73,7 @@ def get_model(model_path):
     return model
 
 def inference(model):
-    img_path = './data/pics/persons.jpg'
+    img_path = './data/pics/warehouse1.jpg'
 
     model.eval()
 
@@ -87,7 +87,6 @@ def inference(model):
     with torch.no_grad():
         # 原始的输出坐标是(center x, center y, width, height)
         detections = model(input_imgs)
-
         # nms中会转换成(x1, y1, x2, y2)
         detections = non_max_suppression(detections, 0.5, 0.4)[0]
 
@@ -100,17 +99,69 @@ def inference(model):
 
 
 
+def get_part_model(model_path):
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+
+    model = MyYolov3_CV(num_class=2,img_size=416).to(device)
+    model.load_state_dict(torch.load(model_path,map_location=device))
+    return model
+
+
+def part_inference(model):
+    img_path = './data/pics/warehouse1.jpg'
+
+    model.eval()
+
+    frame = cv2.imread(img_path)
+    image = Image.open(img_path)
+    img = preprocess(image)
+
+    anchors = [
+        [(116, 90), (156, 198), (373, 326)],  # 13*13 上预测最大的
+        [(30, 61), (62, 45), (59, 119)],  # 26*26 上预测次大的
+        [(10, 13), (16, 30), (33, 23)],  # 13*13 上预测最小的
+    ]
+    yolo1 = YOLO_NP(anchors[0], 2, 416)
+    yolo2 = YOLO_NP(anchors[1], 2, 416)
+    yolo3 = YOLO_NP(anchors[2], 2, 416)
+
+    Tensor = torch.cuda.FloatTensor if torch.cuda.is_available() else torch.FloatTensor
+    input_imgs = Variable(img.type(Tensor))
+    with torch.no_grad():
+        o1,o2,o3 = model(input_imgs)
+        yolo_output1 = yolo1(o1)
+        yolo_output2 = yolo2(o2)
+        yolo_output3 = yolo3(o3)
+        detections = np.concatenate([yolo_output1,yolo_output2,yolo_output3], 1)
+
+        detections = non_max_suppression_np(detections, 0.5, 0.4)[0]
+
+    print('detect res ', len(detections))
+    if detections is not None:
+        org_h, org_w = frame.shape[:2]
+        detections = rescale_boxes(detections, 416, (org_h, org_w))
+        display(detections, image)
+
+
+
+
 if __name__ == '__main__':
     # inference()
 
-    model_path= './weights/yolov3-myyolov3_99_0.355_crowdhuman.pth'
+    model_path= './weights/yolov3-myyolov3_99_0.96_warehouse.pth'
     # model_path= './weights/yolov3-myyolov3_99_0.355_crowdhuman.t7'
 
-    model = get_model(model_path)
+    model_part = get_part_model(model_path)
+    dets1 = part_inference(model_part)
 
-    test_input = torch.randn([1,3,416,416])
+    # model = get_model(model_path)
+    # dets2 = inference(model)
 
-    torch.onnx._export(model, test_input, "./weights/yolov3-myyolov3_99_0.355_crowdhuman.onnx", export_params=True)
+
+
+    # test_input = torch.randn([1,3,416,416])
+
+    # torch.onnx.export(model, test_input, "./weights/yolov3-myyolov3_99_0.355_crowdhuman.onnx", export_params=True)
 
     # inference(model)
     # print(model.state_dict())

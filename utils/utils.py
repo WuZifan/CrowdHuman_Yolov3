@@ -37,6 +37,8 @@ def weights_init_normal(m):
 
 
 def rescale_boxes(boxes, current_dim, original_shape):
+    if isinstance(boxes,list):
+        boxes = np.array(boxes)
     """ Rescales bounding boxes to the original shape """
     orig_h, orig_w = original_shape
     # The amount of padding that was added
@@ -54,7 +56,11 @@ def rescale_boxes(boxes, current_dim, original_shape):
 
 
 def xywh2xyxy(x):
-    y = x.new(x.shape)
+    import numpy as np
+    if isinstance(x,np.ndarray):
+        y = np.zeros_like(x)
+    else:
+        y = x.new(x.shape)
     y[..., 0] = x[..., 0] - x[..., 2] / 2
     y[..., 1] = x[..., 1] - x[..., 3] / 2
     y[..., 2] = x[..., 0] + x[..., 2] / 2
@@ -217,6 +223,8 @@ def bbox_iou(box1, box2, x1y1x2y2=True):
 
     # get the corrdinates of the intersection rectangle
     inter_rect_x1 = torch.max(b1_x1, b2_x1)
+    # print('iou: ',b1_x1.size(),b2_x1.size(),inter_rect_x1.size())
+    # print(b1_x1,b2_x1,inter_rect_x1)
     inter_rect_y1 = torch.max(b1_y1, b2_y1)
     inter_rect_x2 = torch.min(b1_x2, b2_x2)
     inter_rect_y2 = torch.min(b1_y2, b2_y2)
@@ -260,10 +268,17 @@ def non_max_suppression(prediction, conf_thres=0.5, nms_thres=0.4):
         score = image_pred[:, 4] * image_pred[:, 5:].max(1)[0]
         # Sort by it
         image_pred = image_pred[(-score).argsort()]
+        # print(image_pred[:,5:])
         class_confs, class_preds = image_pred[:, 5:].max(1, keepdim=True)
+        # print(class_confs.size(),class_preds.size())
+        # print(class_confs,class_preds)
+        # print(image_pred[:,:5].size(),class_confs.size(),class_preds.size())
         detections = torch.cat((image_pred[:, :5], class_confs.float(), class_preds.float()), 1)
+        # print(detections.size())
         # Perform non-maximum suppression
         keep_boxes = []
+        print(detections.shape)
+        print(detections)
         while detections.size(0):
             # 处理nan and inf
             temp = np.array(np.isnan(detections[0]), dtype=np.int8)
@@ -281,7 +296,100 @@ def non_max_suppression(prediction, conf_thres=0.5, nms_thres=0.4):
             keep_boxes += [detections[0]]
             detections = detections[~invalid]
         if keep_boxes:
+            print(keep_boxes)
+            # print(torch.stack(keep_boxes))
             output[image_i] = torch.stack(keep_boxes)
+
+    return output
+
+def bbox_iou_np(box1, box2, x1y1x2y2=True):
+    """
+    Returns the IoU of two bounding boxes
+    """
+    if not x1y1x2y2:
+        # Transform from center and width to exact coordinates
+        b1_x1, b1_x2 = box1[:, 0] - box1[:, 2] / 2, box1[:, 0] + box1[:, 2] / 2
+        b1_y1, b1_y2 = box1[:, 1] - box1[:, 3] / 2, box1[:, 1] + box1[:, 3] / 2
+
+        b2_x1, b2_x2 = box2[:, 0] - box2[:, 2] / 2, box2[:, 0] + box2[:, 2] / 2
+        b2_y1, b2_y2 = box2[:, 1] - box2[:, 3] / 2, box2[:, 1] + box2[:, 3] / 2
+    else:
+        # Get the coordinates of bounding boxes
+        b1_x1, b1_y1, b1_x2, b1_y2 = box1[:, 0], box1[:, 1], box1[:, 2], box1[:, 3]
+        b2_x1, b2_y1, b2_x2, b2_y2 = box2[:, 0], box2[:, 1], box2[:, 2], box2[:, 3]
+
+    # get the corrdinates of the intersection rectangle
+    inter_rect_x1 = np.maximum(b1_x1, b2_x1)
+    inter_rect_y1 = np.maximum(b1_y1, b2_y1)
+    inter_rect_x2 = np.minimum(b1_x2, b2_x2)
+    inter_rect_y2 = np.minimum(b1_y2, b2_y2)
+    # Intersection area
+    inter_area = np.clip(inter_rect_x2 - inter_rect_x1 + 1, a_min=0,a_max=None) * np.clip(
+        inter_rect_y2 - inter_rect_y1 + 1, a_min=0,a_max=None
+    )
+    # Union Area
+    b1_area = (b1_x2 - b1_x1 + 1) * (b1_y2 - b1_y1 + 1)
+    b2_area = (b2_x2 - b2_x1 + 1) * (b2_y2 - b2_y1 + 1)
+
+    iou = inter_area / (b1_area + b2_area - inter_area + 1e-16)
+
+    return iou
+
+def non_max_suppression_np(prediction, conf_thres=0.5, nms_thres=0.4):
+    """
+    Removes detections with lower object confidence score than 'conf_thres' and performs
+    Non-Maximum Suppression to further filter detections.
+    Returns detections with shape:
+        (x1, y1, x2, y2, object_conf, class_score, class_pred)
+    """
+
+    # From (center x, center y, width, height) to (x1, y1, x2, y2)
+    prediction[..., :4] = xywh2xyxy(prediction[..., :4])
+    output = [None for _ in range(len(prediction))]
+
+    for image_i, image_pred in enumerate(prediction):
+
+        # Filter out confidence scores below threshold
+        image_pred = image_pred[image_pred[:, 4] >= conf_thres]
+
+        # print('res ',image_pred.shape)
+
+        # If none are remaining => process next image
+        if not image_pred.shape[0]:
+            # print('continue')
+            continue
+        # Object confidence times class confidence
+        score = image_pred[:, 4] * image_pred[:, 5:].max(1)[0]
+        # Sort by it
+        image_pred = image_pred[(-score).argsort()]
+
+        class_confs = np.max(image_pred[:,5:],1)[:,np.newaxis]
+        class_preds = np.argmax(image_pred[:,5:],1)[:,np.newaxis]
+        # class_confs, class_preds = image_pred[:, 5:].max(1, keepdims=True)
+        detections = np.concatenate((image_pred[:, :5], class_confs, class_preds), 1)
+        # Perform non-maximum suppression
+        keep_boxes = []
+
+        while detections.shape[0]:
+            # 处理nan and inf
+            temp = np.array(np.isnan(detections[0]), dtype=np.int8)
+            if np.sum(temp) > 0 or np.inf in detections[0]:
+                # print('there are nan or inf in detections[0],drop', detections[0])
+                detections = np.delete(detections, 0, axis=0)
+                continue
+            # large_overlap = bbox_iou(detections[0, :4].unsqueeze(0), detections[:, :4]) > nms_thres
+            large_overlap = bbox_iou_np(detections[0, :4][np.newaxis,:], detections[:, :4]) > nms_thres
+            label_match = detections[0, -1] == detections[:, -1]
+            # Indices of boxes with lower confidence scores, large IOUs and matching labels
+            invalid = large_overlap & label_match
+            weights = detections[invalid, 4:5]
+            # Merge overlapping bboxes by order of confidence
+            detections[0, :4] = (weights * detections[invalid, :4]).sum(0) / weights.sum()
+            keep_boxes += [detections[0]]
+            detections = detections[~invalid]
+        if keep_boxes:
+            # print(keep_boxes)
+            output[image_i] = keep_boxes
 
     return output
 
